@@ -1,0 +1,28 @@
+# --- Secrets : ne doivent JAMAIS apparaître dans l'historique Git ---
+.env
+.env.*
+!.env.example
+
+# --- Données volumineuses : régénérables avec le pipeline ---
+data/
+
+# --- Journaux d'exécution ---
+logs/
+
+# --- Fichiers temporaires (écriture atomique interrompue, etc.) ---
+*.tmp
+
+# --- Python ---
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# --- Jupyter ---
+.ipynb_checkpoints/
+
+# --- Systèmes / IDE ---
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

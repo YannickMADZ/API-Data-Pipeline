@@ -1,0 +1,80 @@
+# =============================================================================
+# Configuration du pipeline NYC Yellow Taxi.
+# Tout ce qui peut varier (URL, pagination, réseau, chemins, seuils) est ici,
+# jamais en dur dans le code. Seuls l'année et le mois passent en ligne de
+# commande, car ils changent à chaque exécution.
+# =============================================================================
+
+api:
+  base_url: "https://data.cityofnewyork.us/resource"
+  dataset_id: "4b4i-vvec"            # 2023 Yellow Taxi Trip Data
+  token_env_var: "SOCRATA_APP_TOKEN" # nom de la variable lue dans .env
+  date_column: "tpep_pickup_datetime" # colonne utilisée pour filtrer le mois
+  order_by: ":id"                    # clé unique système => pagination stable
+
+  # Paramètre $limit : nombre maximum de lignes par requête (taille d'une page).
+  # Sans $limit l'API renvoie seulement 1000 lignes.
+  # 50 000 = compromis entre nombre de requêtes (~60 pour un mois) et taille
+  # de réponse (risque de timeout, mémoire, coût d'un retéléchargement).
+  # -> À justifier dans le README avec tes propres mesures.
+  page_size: 50000
+
+network:
+  connect_timeout: 10     # secondes pour établir la connexion TCP
+  read_timeout: 120       # secondes pour recevoir une page complète
+  max_retries: 5          # nombre total de tentatives par requête
+  backoff_base: 2         # attente = backoff_base * 2^(tentative-1) secondes
+  backoff_max: 60         # plafond d'attente entre deux tentatives
+  retry_statuses: [429, 500, 502, 503, 504]  # codes HTTP considérés transitoires
+
+storage:
+  compress_raw: true      # pages brutes en .json.gz (~10x plus léger que .json)
+
+paths:                    # {period} est remplacé par AAAA-MM
+  raw_dir: "data/raw/{period}"
+  processed_dir: "data/processed/{period}"
+  reports_dir: "reports/{period}"
+  logs_dir: "logs"
+
+# Typage des colonnes : utilisé par le notebook, puis par transform.py.
+# Rappel : l'API renvoie TOUTES les valeurs sous forme de chaînes.
+schema:
+  datetime: [tpep_pickup_datetime, tpep_dropoff_datetime]
+  integer:  [vendorid, passenger_count, ratecodeid, pulocationid, dolocationid, payment_type]
+  float:    [trip_distance, fare_amount, extra, mta_tax, tip_amount, tolls_amount,
+             improvement_surcharge, total_amount, congestion_surcharge, airport_fee]
+  category: [store_and_fwd_flag]
+
+# =============================================================================
+# Nettoyage. Chaque seuil est justifié par l'exploration du mois complet
+# 2023-01 (3 066 726 lignes, notebooks/01_exploration.ipynb) : voir README §7.
+# Le rapport qualité recalcule à chaque exécution les percentiles observés
+# du mois traité, pour vérifier que le seuil reste pertinent sur un autre mois.
+# =============================================================================
+cleaning:
+  # Lignes SUPPRIMÉES (trajets physiquement impossibles)
+  min_duration_minutes: 0      # durée <= 0 supprimée (3 négatives, 1 118 nulles)
+  max_duration_minutes: 180    # p99.9 = 175 min ; max = 10 029 min (7 jours)
+  max_trip_distance: 100       # p99.9 = 28.8 mi ; max = 258 928 mi
+  max_speed_mph: 80            # p99.9 = 49.8 mph ; max = 2 589 281 mph
+
+  # Lignes CONSERVÉES mais marquées (colonnes flag_*)
+  amount_tolerance: 0.01                    # tolérance d'arrondi sur les montants ($)
+  vendors_extra_includes_surcharges: [1]    # vendor dont `extra` inclut congestion + aéroport
+  unknown_zones: [264, 265]                 # zones "Unknown" / "N/A" de la table TLC
+  metadata_columns: [passenger_count, ratecodeid, store_and_fwd_flag,
+                     congestion_surcharge, airport_fee]  # manquantes ensemble
+  amount_components: [fare_amount, extra, mta_tax, tip_amount, tolls_amount,
+                      improvement_surcharge, congestion_surcharge, airport_fee]
+
+output:
+  clean_filename: "trips_clean.csv"
+  # Ordre des colonnes du CSV final : celui du dictionnaire TLC, puis les
+  # colonnes dérivées et les indicateurs. Sans ordre fixé, il dépendrait des
+  # champs présents dans la première ligne reçue de l'API.
+  column_order: [row_id, vendorid, tpep_pickup_datetime, tpep_dropoff_datetime,
+                 passenger_count, trip_distance, ratecodeid, store_and_fwd_flag,
+                 pulocationid, dolocationid, payment_type, fare_amount, extra,
+                 mta_tax, tip_amount, tolls_amount, improvement_surcharge,
+                 total_amount, congestion_surcharge, airport_fee,
+                 duration_min, speed_mph, total_gap]

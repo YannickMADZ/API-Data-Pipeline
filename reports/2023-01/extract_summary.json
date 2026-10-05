@@ -1,0 +1,16 @@
+{
+  "period": "2023-01",
+  "extracted_at_utc": "2026-10-05T21:02:01+00:00",
+  "api_where": "tpep_pickup_datetime >= '2023-01-01T00:00:00' AND tpep_pickup_datetime < '2023-02-01T00:00:00'",
+  "api_count": 3066726,
+  "rows_extracted": 3066726,
+  "unique_ids": 3066726,
+  "duplicates": 0,
+  "page_size": 50000,
+  "pages_total": 62,
+  "pages_downloaded": 62,
+  "pages_reused": 0,
+  "raw_dir": "data/raw/2023-01",
+  "duration_seconds": 1199.0,
+  "status": "OK"
+}

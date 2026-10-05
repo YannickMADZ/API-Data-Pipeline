@@ -1,0 +1,10 @@
+# --- Pipeline ---
+requests==2.32.3        # appels HTTP à l'API Socrata
+pandas==2.2.3           # manipulation tabulaire (transformation / exploration)
+python-dotenv==1.0.1    # lecture du token depuis .env
+PyYAML==6.0.2           # lecture de config.yaml
+
+# --- Exploration (notebook) ---
+matplotlib==3.9.2
+jupyterlab==4.2.5
+httpx<0.28              # httpx 0.28 casse le gestionnaire d extensions de JupyterLab 4.2

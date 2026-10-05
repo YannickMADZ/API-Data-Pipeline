@@ -1,0 +1,8 @@
+# Le secret n'est jamais copié dans l'image : il est injecté au lancement (env_file).
+.env
+.git
+data/
+logs/
+__pycache__/
+.ipynb_checkpoints/
+*.tmp

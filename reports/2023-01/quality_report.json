@@ -1,0 +1,205 @@
+{
+  "period": "2023-01",
+  "generated_at_utc": "2026-10-05T21:06:34+00:00",
+  "status": "VALIDE",
+  "summary": {
+    "api_count": 3066726,
+    "rows_extracted": 3066726,
+    "rows_removed": 5796,
+    "rows_removed_pct": 0.189,
+    "rows_final": 3060930,
+    "output_file": "data/processed/2023-01/trips_clean.csv"
+  },
+  "thresholds": {
+    "min_duration_minutes": 0,
+    "max_duration_minutes": 180,
+    "max_trip_distance": 100,
+    "max_speed_mph": 80
+  },
+  "removed_rows_by_rule": [
+    {
+      "rule": "pickup_hors_du_mois",
+      "threshold": "[2023-01-01T00:00:00 ; 2023-02-01T00:00:00[",
+      "rows_removed": 0,
+      "pct": 0.0,
+      "observed": {},
+      "justification": "Garde-fou : le filtre $where de l'extraction exclut déjà ces lignes ; la règle garantit qu'un trajet n'appartient qu'à un seul mois."
+    },
+    {
+      "rule": "duree_non_positive",
+      "threshold": "duration_min <= 0",
+      "rows_removed": 1121,
+      "pct": 0.0366,
+      "observed": {
+        "negatives": 3,
+        "nulles": 1118
+      },
+      "justification": "Un dépôt avant ou au même instant que la prise en charge est physiquement impossible : horodatage erroné, trajet inexploitable."
+    },
+    {
+      "rule": "duree_trop_longue",
+      "threshold": "duration_min > 180",
+      "rows_removed": 3046,
+      "pct": 0.0993,
+      "observed": {
+        "p50": 11.517,
+        "p99": 57.25,
+        "p99.9": 175.082,
+        "max": 10029.183
+      },
+      "justification": "99,9 % des trajets durent moins de 175.082 min, puis la queue s'étire jusqu'à 10029 min. Seuil arrondi à 3 h, juste au-dessus du p99.9 : au-delà, compteur resté allumé plutôt que trajet réel."
+    },
+    {
+      "rule": "distance_trop_longue",
+      "threshold": "trip_distance > 100",
+      "rows_removed": 83,
+      "pct": 0.0027,
+      "observed": {
+        "p50": 1.8,
+        "p99": 20.06,
+        "p99.9": 28.8,
+        "max": 258928.15
+      },
+      "justification": "p99.9 = 28.8 mi mais max = 258928 mi. Le seuil n'est PAS le p99.9 : il garde les longues courses légitimes (aéroports, hors ville) et n'exclut que des distances sans rapport avec un trajet en taxi."
+    },
+    {
+      "rule": "vitesse_impossible",
+      "threshold": "speed_mph > 80",
+      "rows_removed": 1546,
+      "pct": 0.0504,
+      "observed": {
+        "p50": 10.227,
+        "p99": 38.092,
+        "p99.9": 49.699,
+        "max": 2589281.5
+      },
+      "justification": "99,9 % des vitesses moyennes sont sous 49.699 mph, puis saut jusqu'à 2589282 mph. Au-delà de 80 mph de moyenne sur tout le trajet, la distance ou les horodatages sont faux."
+    }
+  ],
+  "kept_despite_anomaly": [
+    {
+      "flag": "flag_missing_metadata",
+      "rows": 71661,
+      "pct": 2.3412,
+      "breakdown": {
+        "payment_type": {
+          "0": 71661
+        }
+      },
+      "justification": "Les 5 colonnes de métadonnées sont manquantes ENSEMBLE, uniquement pour payment_type = 0. Montants valides : trajets réels dont seules les métadonnées du véhicule manquent. Pas d'imputation (une médiane inventerait des passagers, un 0 affirmerait l'absence de frais)."
+    },
+    {
+      "flag": "flag_extra_includes_surcharges",
+      "rows": 761286,
+      "pct": 24.8711,
+      "breakdown": {
+        "vendorid": {
+          "1": 761286
+        }
+      },
+      "justification": "Anomalie piège : pour ces vendors, total_amount est JUSTE mais `extra` contient déjà congestion_surcharge et airport_fee, aussi répétés dans leurs colonnes. L'écart vaut exactement -(congestion + aéroport). Supprimer ces lignes retirerait ~25 % du mois."
+    },
+    {
+      "flag": "flag_total_mismatch_other",
+      "rows": 68783,
+      "pct": 2.2471,
+      "breakdown": {
+        "total_gap": {
+          "2.5": 66348,
+          "4.5": 1414,
+          "-2.8": 686,
+          "-1.25": 115,
+          "1.95": 80
+        },
+        "dont_metadata_manquantes": 67811
+      },
+      "justification": "Écart de total non expliqué par la règle précédente. Le détail donne les écarts les plus fréquents et la part de lignes à métadonnées manquantes (surcharge incluse au total mais absente des colonnes). Conservé : le total facturé reste la valeur de référence."
+    },
+    {
+      "flag": "flag_negative_amount",
+      "rows": 25174,
+      "pct": 0.8224,
+      "breakdown": {
+        "payment_type": {
+          "4": 14741,
+          "2": 5844,
+          "3": 4522,
+          "0": 46,
+          "1": 21
+        }
+      },
+      "justification": "Contre-passations comptables (annulations, litiges) : concentrées sur payment_type 3 (sans frais) et 4 (litige). Conservées pour l'audit, à exclure d'une analyse de revenus."
+    },
+    {
+      "flag": "flag_zero_distance",
+      "rows": 44755,
+      "pct": 1.4621,
+      "breakdown": {},
+      "justification": "Course payée mais distance nulle : défaillance GPS probable, transaction réelle. À exclure des analyses de distance ou de vitesse."
+    },
+    {
+      "flag": "flag_zero_passenger",
+      "rows": 50896,
+      "pct": 1.6628,
+      "breakdown": {
+        "vendorid": {
+          "1": 50723,
+          "2": 173
+        }
+      },
+      "justification": "passenger_count = 0 presque exclusivement chez le vendor 1 : saisie manuelle non faite par le chauffeur, pas un trajet sans passager."
+    },
+    {
+      "flag": "flag_unknown_zone",
+      "rows": 56798,
+      "pct": 1.8556,
+      "breakdown": {},
+      "justification": "Zones 264/265 = 'Unknown'/'N/A' dans la table TLC. Montants valides : à exclure seulement des analyses géographiques."
+    }
+  ],
+  "type_conversion_failures": {},
+  "missing_values_before_cleaning": {
+    "passenger_count": 71743,
+    "ratecodeid": 71743,
+    "store_and_fwd_flag": 71743,
+    "congestion_surcharge": 71743,
+    "airport_fee": 71743
+  },
+  "checks": [
+    {
+      "check": "extraction_complete",
+      "passed": true,
+      "detail": "3066726 lignes extraites / count(*) API = 3066726, 0 doublon"
+    },
+    {
+      "check": "conservation_des_lignes",
+      "passed": true,
+      "detail": "3066726 brutes = 3060930 finales + 5796 retirées"
+    },
+    {
+      "check": "taille_du_csv",
+      "passed": true,
+      "detail": "3060930 lignes lues dans le CSV, 3060930 attendues"
+    },
+    {
+      "check": "unicite_row_id",
+      "passed": true,
+      "detail": "0 doublon(s) de row_id"
+    },
+    {
+      "check": "seuils_respectes",
+      "passed": true,
+      "detail": "durée max = 179.6 min, distance max = 96.7 mi, vitesse max = 80.0 mph"
+    },
+    {
+      "check": "pickup_dans_le_mois",
+      "passed": true,
+      "detail": "de 2023-01-01 00:00:00 à 2023-01-31 23:59:59"
+    },
+    {
+      "check": "colonnes_presentes",
+      "passed": true,
+      "detail": "30 colonnes, attendues 30"
+    }
+  ]
+}

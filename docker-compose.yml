@@ -1,0 +1,29 @@
+# Deux services partagent la même image :
+#   - pipeline : exécute python -m pipeline <arguments>
+#   - notebook : JupyterLab pour l'exploration
+# Le dossier du projet est monté dans /app : les données, logs et rapports
+# produits dans le conteneur apparaissent directement sur ta machine.
+services:
+  pipeline:
+    build: .
+    env_file: .env            # injecte SOCRATA_APP_TOKEN sans le copier dans l'image
+    volumes:
+      - .:/app
+    # Usage : docker compose run --rm pipeline --year 2023 --month 1
+
+  notebook:
+    build: .
+    env_file: .env
+    volumes:
+      - .:/app
+    entrypoint: ["jupyter", "lab"]
+    command:
+      - "--ip=0.0.0.0"
+      - "--port=8888"
+      - "--no-browser"
+      - "--allow-root"
+      - "--notebook-dir=/app"
+      - "--IdentityProvider.token="   # pas de jeton Jupyter : acceptable car...
+    ports:
+      - "127.0.0.1:8888:8888"     # ...le port n'est exposé QU'EN LOCAL (127.0.0.1)
+    # Usage : docker compose up notebook   puis http://localhost:8888
